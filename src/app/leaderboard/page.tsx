@@ -17,22 +17,23 @@ export default function LeaderboardPage() {
         lastUpdated: 0,
     });
     const [isLoading, setIsLoading] = useState(true);
+    const [isConnected, setIsConnected] = useState(false);
     const router = useRouter();
 
     const fetchGameData = async () => {
         try {
-            const response = await fetch('/api/game-state');
+            const response = await fetch('/api/game-state', { cache: 'no-store' });
             const data = await response.json();
 
             setGameState(data.gameState);
 
             // Create leaderboard from users data
             const leaderboardData: LeaderboardEntry[] = data.users
-                .sort((a: LeaderboardEntry, b: LeaderboardEntry) => b.tapCount - a.tapCount)
+                .sort((a: { tapCount: number }, b: { tapCount: number }) => b.tapCount - a.tapCount)
                 .slice(0, 20)
-                .map((user: LeaderboardEntry, index: number) => ({
+                .map((user: { username: string; team: string; tapCount: number }, index: number) => ({
                     username: user.username,
-                    team: user.team,
+                    team: user.team as 'blue' | 'red',
                     tapCount: user.tapCount,
                     rank: index + 1,
                 }));
@@ -45,11 +46,43 @@ export default function LeaderboardPage() {
         }
     };
 
+    // Initial data load
     useEffect(() => {
         fetchGameData();
-        const interval = setInterval(fetchGameData, 2000);
+    }, []);
 
-        return () => clearInterval(interval);
+    // Connect to WebSocket for real-time updates
+    useEffect(() => {
+        const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
+        const websocket = new WebSocket(wsUrl);
+
+        websocket.onopen = () => {
+            setIsConnected(true);
+            console.log('Leaderboard WebSocket connected');
+        };
+
+        websocket.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+
+            if (message.type === 'game_update' && message.data.gameState) {
+                // Update game state from WebSocket
+                setGameState(message.data.gameState);
+                // Refetch leaderboard data when game state changes
+                fetchGameData();
+            }
+        };
+
+        websocket.onclose = () => {
+            setIsConnected(false);
+            console.log('Leaderboard WebSocket disconnected');
+        };
+
+        websocket.onerror = () => {
+            setIsConnected(false);
+            console.error('Leaderboard WebSocket error');
+        };
+
+        return () => websocket.close();
     }, []);
 
     const getRankIcon = (rank: number) => {

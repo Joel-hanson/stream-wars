@@ -1,9 +1,9 @@
-import { createServer, Server } from 'http';
-import { IncomingMessage, ServerResponse } from 'http';
+import { createServer, IncomingMessage, Server, ServerResponse } from 'http';
 import next from 'next';
 import { parse } from 'url';
 import { initializeKafka } from './src/lib/kafka';
 import { startKafkaConsumer } from './src/lib/kafka-consumer';
+import { connectRedis } from './src/lib/redis';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname: string = 'localhost';
@@ -25,6 +25,15 @@ app.prepare().then(async (): Promise<void> => {
       res.end('internal server error');
     }
   });
+
+  // Initialize Redis
+  try {
+    await connectRedis();
+    console.log('Redis connected successfully');
+  } catch (error) {
+    console.error('Redis connection failed:', error);
+    // Continue without Redis for development
+  }
 
   // Initialize Kafka
   try {

@@ -51,13 +51,15 @@ class GameWebSocketServer {
       // Send current game state to new client
       this.sendToClient(clientId, {
         type: 'game_update',
-        data: this.gameState,
+        data: {
+          gameState: this.gameState,
+        },
       });
     });
   }
 
   private generateClientId(): string {
-    return Math.random().toString(36).substr(2, 9);
+    return Math.random().toString(36).substring(2, 11);
   }
 
   private handleMessage(clientId: string, message: any) {
@@ -137,7 +139,10 @@ class GameWebSocketServer {
       
       this.broadcast({
         type: 'game_update',
-        data: this.gameState,
+        data: {
+          gameState: this.gameState,
+          user,
+        },
       });
     }
   }

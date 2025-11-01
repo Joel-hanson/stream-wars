@@ -7,7 +7,7 @@ const port = parseInt(process.env.WS_PORT || '3001', 10);
 async function startServer() {
   try {
     console.log('🚀 Starting standalone WebSocket server...');
-    standaloneWebSocketServer.start(port);
+    await standaloneWebSocketServer.start(port);
     
     console.log('📡 Initializing Kafka...');
     await initializeKafka();

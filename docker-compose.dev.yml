@@ -9,8 +9,10 @@ services:
     environment:
       - NODE_ENV=development
       - KAFKA_BROKERS=kafka:9092
+      - REDIS_URL=redis://redis:6379
       - NEXT_PUBLIC_WS_URL=ws://localhost:3001
       - WS_PORT=3001
+      - WS_HTTP_URL=http://localhost:3001
     volumes:
       - .:/app
       - /app/node_modules  # Prevent overwriting node_modules

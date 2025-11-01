@@ -2,16 +2,18 @@
 
 import { ScoreDisplay } from '@/components/ScoreDisplay';
 import { GameState, User } from '@/lib/types';
-import { assignTeam, generateUsername } from '@/lib/utils';
+import { assignTeam, generateId, generateUsername } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function HomePage() {
+  // Initialize as null to ensure server and client match on first render
   const [user, setUser] = useState<User | null>(null);
-  const [pendingName, setPendingName] = useState<string>(generateUsername());
+  const [pendingName, setPendingName] = useState<string>('');
   const [clientIp, setClientIp] = useState<string | undefined>(undefined);
-  const [clientUA, setClientUA] = useState<string>('');
+  const userRef = useRef<User | null>(user);
+  const channelRef = useRef<BroadcastChannel | null>(null);
   const [gameState, setGameState] = useState<GameState>({
     blueScore: 0,
     redScore: 0,
@@ -22,16 +24,54 @@ export default function HomePage() {
   const [isConnected, setIsConnected] = useState(false);
   const router = useRouter();
 
-  // Fetch client meta (IP and UA)
+  // Rehydrate user from localStorage after mount (avoid hydration mismatch)
   useEffect(() => {
-    setClientUA(navigator.userAgent || '');
+    // These setState calls in useEffect are intentional to avoid hydration mismatch
+    // - localStorage is only available client-side
+    // - generateUsername() uses Math.random() which differs between server and client
+    try {
+      const saved = localStorage.getItem('sw_user');
+      if (saved) {
+        // eslint-disable-next-line
+        setUser(JSON.parse(saved) as User);
+      }
+    } catch (error) {
+      console.error('Error loading user from localStorage:', error);
+    }
+    setPendingName(generateUsername());
+  }, []);
+
+  // Sync userRef with user state
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  // Fetch client meta (IP) and setup cross-tab sync
+  useEffect(() => {
     fetch('/api/client-info')
       .then(r => r.json())
       .then(data => setClientIp(data.ip))
       .catch(() => setClientIp(undefined));
+
+    // Setup cross-tab sync
+    const bc = new BroadcastChannel('sw_channel');
+    channelRef.current = bc;
+    bc.onmessage = (ev) => {
+      if (ev?.data?.type === 'tap' && ev.data?.userId && userRef.current && ev.data.userId === userRef.current.id) {
+        setUser(prev => prev ? { ...prev, tapCount: ev.data.tapCount } : prev);
+      }
+      if (ev?.data?.type === 'user_update' && ev.data?.user) {
+        const incoming: User = ev.data.user;
+        setUser(prev => (prev && prev.id === incoming.id) ? incoming : prev);
+      }
+    };
+
+    return () => {
+      bc.close();
+    };
   }, []);
 
-  // When user is set, open websocket and announce join
+  // When user is set, persist, announce to other tabs, and open websocket
   useEffect(() => {
     if (!user) return;
 
@@ -49,7 +89,21 @@ export default function HomePage() {
     websocket.onmessage = (event) => {
       const message = JSON.parse(event.data);
       if (message.type === 'game_update') {
-        setGameState(message.data);
+        // Handle both old format (just gameState) and new format (gameState + user)
+        if (message.data.gameState) {
+          setGameState(message.data.gameState);
+          // If this update includes the current user's data, sync it
+          if (message.data.user && message.data.user.id === userRef.current?.id) {
+            setUser(prev => prev ? {
+              ...prev,
+              tapCount: message.data.user.tapCount,
+              lastTapTime: message.data.user.lastTapTime
+            } : prev);
+          }
+        } else {
+          // Old format - just gameState
+          setGameState(message.data);
+        }
       }
     };
 
@@ -57,7 +111,18 @@ export default function HomePage() {
     websocket.onerror = () => setIsConnected(false);
 
     return () => websocket.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // Persist user to localStorage and broadcast to other tabs whenever it changes
+  useEffect(() => {
+    if (!user) return;
+    try { localStorage.setItem('sw_user', JSON.stringify(user)); } catch { }
+    channelRef.current?.postMessage({ type: 'user_update', user });
   }, [user]);
+
+  // Keep tap count in sync when other tabs/users update via broadcast
+  // (no polling needed - WebSocket already sends game_update)
 
   const handleTap = async () => {
     if (!user || !isConnected) return;
@@ -78,7 +143,13 @@ export default function HomePage() {
 
       if (response.ok) {
         // Update local user tap count immediately for better UX
-        setUser(prev => prev ? { ...prev, tapCount: prev.tapCount + 1 } : null);
+        setUser(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev, tapCount: prev.tapCount + 1, lastTapTime: Date.now() };
+          try { localStorage.setItem('sw_user', JSON.stringify(updated)); } catch { }
+          channelRef.current?.postMessage({ type: 'tap', userId: updated.id, tapCount: updated.tapCount });
+          return updated;
+        });
       }
     } catch (error) {
       console.error('Error sending tap:', error);
@@ -89,14 +160,21 @@ export default function HomePage() {
     router.push('/leaderboard');
   };
 
+  const handleChangeUser = () => {
+    try { localStorage.removeItem('sw_user'); } catch { }
+    // Force username modal and cleanup ws via effect cleanup
+    setUser(null);
+  };
+
   const [tapEffect, setTapEffect] = useState(false);
   const [tapPosition, setTapPosition] = useState({ x: 0, y: 0 });
+  const tapInProgressRef = useRef(false);
 
   const startSession = () => {
-    const sessionId = Math.random().toString(36).substr(2, 9);
+    const sessionId = generateId();
     const team = assignTeam();
     const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: generateId(),
       username: (pendingName || '').trim() || generateUsername(),
       team,
       sessionId,
@@ -104,10 +182,15 @@ export default function HomePage() {
       lastTapTime: Date.now(),
       meta: {
         ip: clientIp,
-        userAgent: clientUA,
+        userAgent: navigator.userAgent || '',
         language: navigator.language,
       },
     };
+    try {
+      localStorage.setItem('sw_user', JSON.stringify(newUser));
+    } catch (error) {
+      console.error('Error saving user to localStorage:', error);
+    }
     setUser(newUser);
   };
 
@@ -117,21 +200,31 @@ export default function HomePage() {
         <div className="w-full max-w-md bg-white/90 backdrop-blur rounded-2xl p-6 border border-slate-200/60 shadow-sm">
           <div className="text-slate-900 text-xl font-bold mb-2">Choose a username</div>
           <div className="text-slate-500 text-sm mb-4">You can change it anytime by refreshing.</div>
-          <input
-            value={pendingName}
-            onChange={(e) => setPendingName(e.target.value)}
-            placeholder="Enter a username"
-            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/50 focus:border-slate-400"
-          />
-          <button
-            onClick={startSession}
-            className="mt-4 w-full rounded-xl bg-slate-900 text-white font-semibold py-2.5 hover:bg-slate-800 transition-colors"
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              startSession();
+            }}
           >
-            Start
-          </button>
-          <div className="mt-3 text-xs text-slate-500">
-            We’ll capture basic device info to improve fairness (IP, browser).
-          </div>
+            <input
+              value={pendingName}
+              onChange={(e) => setPendingName(e.target.value)}
+              placeholder="Enter a username"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/50 focus:border-slate-400"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  startSession();
+                }
+              }}
+            />
+            <button
+              type="submit"
+              className="mt-4 w-full rounded-xl bg-slate-900 text-white font-semibold py-2.5 hover:bg-slate-800 transition-colors"
+            >
+              Start
+            </button>
+          </form>
         </div>
       </div>
     );
@@ -140,15 +233,22 @@ export default function HomePage() {
   const teamGradient = user.team === 'blue'
     ? 'from-sky-400 to-blue-400'
     : 'from-rose-400 to-pink-400';
-  const teamAccent = user.team === 'blue' ? 'sky' : 'rose';
 
-  const handleTapWithEffect = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleTapWithEffect = (e: React.PointerEvent) => {
     if (!isConnected) return;
+
+    // Prevent duplicate taps (both touch and click events can fire)
+    if (tapInProgressRef.current) return;
+
+    tapInProgressRef.current = true;
+    setTimeout(() => {
+      tapInProgressRef.current = false;
+    }, 100);
 
     // Get tap position
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = ('touches' in e ? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = ('touches' in e ? e.touches[0].clientY : e.clientY) - rect.top;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
     setTapPosition({ x, y });
     setTapEffect(true);
@@ -165,23 +265,14 @@ export default function HomePage() {
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
       >
-        <div className="container max-w-2xl mx-auto px-5 py-4">
-          <div className="flex items-center justify-between">
+        <div className="container max-w-2xl mx-auto px-5 py-3.5">
+          <div className="flex items-center justify-between gap-4">
             {/* User Info */}
-            <div className="flex items-center gap-3">
-              <motion.div
-                className={`relative w-11 h-11 rounded-2xl bg-gradient-to-br ${teamGradient} shadow-lg shadow-${teamAccent}-500/25 flex items-center justify-center`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <span className="text-white font-bold text-sm tracking-tight">
-                  {user.team === 'blue' ? 'B' : 'R'}
-                </span>
-                <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-slate-400'} ring-2 ring-white shadow-sm`} />
-              </motion.div>
-              <div>
-                <div className="font-semibold text-slate-900 text-base tracking-tight">{user.username}</div>
-                <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-slate-400'} shrink-0`} />
+              <div className="min-w-0">
+                <div className="font-semibold text-slate-900 text-base tracking-tight truncate">{user.username}</div>
+                <div className="text-xs font-medium">
                   <span className={`${user.team === 'blue' ? 'text-sky-600' : 'text-rose-600'}`}>
                     Team {user.team === 'blue' ? 'Blue' : 'Red'}
                   </span>
@@ -189,23 +280,33 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Tap Count & Leaderboard */}
-            <div className="flex items-center gap-4">
-              <motion.div
-                className="text-right"
-                key={user.tapCount}
-                initial={{ scale: 1.2 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            {/* Tap Count */}
+            <motion.div
+              className="text-center shrink-0"
+              key={user.tapCount}
+              initial={{ scale: 1.2 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            >
+              <div className={`text-2xl font-bold bg-gradient-to-br ${teamGradient} bg-clip-text text-transparent`}>
+                {user.tapCount.toLocaleString()}
+              </div>
+              <div className="text-[10px] text-slate-500 font-medium tracking-wide">YOUR TAPS</div>
+            </motion.div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 shrink-0">
+              <motion.button
+                onClick={handleChangeUser}
+                className="px-3 py-1.5 rounded-lg bg-white text-slate-900 text-xs font-semibold hover:bg-slate-100 transition-colors border border-slate-200"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                <div className={`text-3xl font-bold bg-gradient-to-br ${teamGradient} bg-clip-text text-transparent`}>
-                  {user.tapCount.toLocaleString()}
-                </div>
-                <div className="text-xs text-slate-500 font-medium tracking-wide">TAPS</div>
-              </motion.div>
+                Change
+              </motion.button>
               <motion.button
                 onClick={goToLeaderboard}
-                className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors shadow-sm"
+                className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors shadow-sm"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -241,9 +342,8 @@ export default function HomePage() {
 
       {/* Tap Area - Interactive Zone */}
       <motion.div
-        className={`relative flex-1 bg-gradient-to-br ${teamGradient} ${!isConnected ? 'opacity-50' : 'cursor-pointer'} flex items-center justify-center select-none overflow-hidden`}
-        onClick={handleTapWithEffect}
-        onTouchStart={handleTapWithEffect}
+        className={`relative flex-1 bg-gradient-to-br ${teamGradient} ${!isConnected ? 'opacity-50' : 'cursor-pointer'} flex items-center justify-center select-none overflow-hidden touch-none`}
+        onPointerDown={handleTapWithEffect}
         whileTap={isConnected ? { scale: 0.98 } : {}}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

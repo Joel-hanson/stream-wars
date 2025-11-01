@@ -29,6 +29,7 @@ const kafka = new Kafka({
 export const TOPICS = {
   GAME_TAPS: process.env.KAFKA_TOPIC || 'game-taps',
   GAME_UPDATES: 'game-updates',
+  USER_METADATA: 'user-metadata',
 } as const;
 
 let producer: Producer | null = null;
