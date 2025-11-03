@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 export default function HomePage() {
   // Initialize as null to ensure server and client match on first render
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [pendingName, setPendingName] = useState<string>('');
   const [clientIp, setClientIp] = useState<string | undefined>(undefined);
   const userRef = useRef<User | null>(user);
@@ -32,13 +33,16 @@ export default function HomePage() {
     try {
       const saved = localStorage.getItem('sw_user');
       if (saved) {
-        // eslint-disable-next-line
-        setUser(JSON.parse(saved) as User);
+        const loadedUser = JSON.parse(saved) as User;
+        setUser(loadedUser);
+        console.log('Loaded user from localStorage:', loadedUser.username, 'Taps:', loadedUser.tapCount);
       }
     } catch (error) {
       console.error('Error loading user from localStorage:', error);
     }
     setPendingName(generateUsername());
+    // Set loading to false after a brief delay to show loading state
+    setTimeout(() => setIsLoading(false), 500);
   }, []);
 
   // Sync userRef with user state
@@ -58,7 +62,13 @@ export default function HomePage() {
     channelRef.current = bc;
     bc.onmessage = (ev) => {
       if (ev?.data?.type === 'tap' && ev.data?.userId && userRef.current && ev.data.userId === userRef.current.id) {
-        setUser(prev => prev ? { ...prev, tapCount: ev.data.tapCount } : prev);
+        setUser(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev, tapCount: ev.data.tapCount };
+          // Save to localStorage to persist tap count across tabs
+          try { localStorage.setItem('sw_user', JSON.stringify(updated)); } catch { }
+          return updated;
+        });
       }
       if (ev?.data?.type === 'user_update' && ev.data?.user) {
         const incoming: User = ev.data.user;
@@ -94,11 +104,23 @@ export default function HomePage() {
           setGameState(message.data.gameState);
           // If this update includes the current user's data, sync it
           if (message.data.user && message.data.user.id === userRef.current?.id) {
-            setUser(prev => prev ? {
-              ...prev,
-              tapCount: message.data.user.tapCount,
-              lastTapTime: message.data.user.lastTapTime
-            } : prev);
+            setUser(prev => {
+              if (!prev) return prev;
+              // Use the maximum tap count to preserve localStorage data
+              const serverTapCount = message.data.user.tapCount;
+              const localTapCount = prev.tapCount;
+              const finalTapCount = Math.max(serverTapCount, localTapCount);
+
+              const updated = {
+                ...prev,
+                tapCount: finalTapCount,
+                lastTapTime: message.data.user.lastTapTime
+              };
+              // Save to localStorage to persist tap count
+              try { localStorage.setItem('sw_user', JSON.stringify(updated)); } catch { }
+              // console.log(`Tap count synced - Local: ${localTapCount}, Server: ${serverTapCount}, Final: ${finalTapCount}`);
+              return updated;
+            });
           }
         } else {
           // Old format - just gameState
@@ -194,10 +216,99 @@ export default function HomePage() {
     setUser(newUser);
   };
 
+  // Show loading state with main window skeleton
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-linear-to-b from-slate-50 to-slate-100 flex flex-col">
+        {/* Top Bar Skeleton */}
+        <motion.div
+          className="flex-none backdrop-blur-xl bg-white/80 border-b border-slate-200/50 shadow-sm"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+        >
+          <div className="container max-w-2xl mx-auto px-5 py-3.5">
+            <div className="flex items-center justify-between gap-4">
+              {/* User Info Skeleton */}
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className="w-2 h-2 rounded-full bg-slate-300 animate-pulse" />
+                <div>
+                  <div className="h-5 w-32 bg-slate-200 rounded animate-pulse mb-1" />
+                  <div className="h-3 w-20 bg-slate-200 rounded animate-pulse" />
+                </div>
+              </div>
+
+              {/* Tap Count Skeleton */}
+              <div className="text-center shrink-0">
+                <div className="h-7 w-16 bg-slate-200 rounded animate-pulse mb-1" />
+                <div className="h-2.5 w-16 bg-slate-200 rounded animate-pulse" />
+              </div>
+
+              {/* Buttons Skeleton */}
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="h-7 w-16 bg-slate-200 rounded-lg animate-pulse" />
+                <div className="h-7 w-16 bg-slate-900/20 rounded-lg animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Stats Section Skeleton */}
+        <div className="flex-none container max-w-2xl mx-auto px-5 py-5 space-y-4">
+          {/* Score Display Skeleton */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white/90 backdrop-blur rounded-2xl p-4 border border-slate-200/50">
+              <div className="h-3 w-20 bg-slate-200 rounded animate-pulse mb-2" />
+              <div className="h-9 w-24 bg-slate-200 rounded animate-pulse" />
+            </div>
+            <div className="bg-white/90 backdrop-blur rounded-2xl p-4 border border-slate-200/50">
+              <div className="h-3 w-20 bg-slate-200 rounded animate-pulse mb-2" />
+              <div className="h-9 w-24 bg-slate-200 rounded animate-pulse" />
+            </div>
+          </div>
+
+          {/* Quick Stats Skeleton */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white/90 backdrop-blur rounded-2xl p-4 border border-slate-200/50">
+              <div className="h-8 w-16 bg-slate-200 rounded animate-pulse mb-1" />
+              <div className="h-3 w-28 bg-slate-200 rounded animate-pulse" />
+            </div>
+            <div className="bg-white/90 backdrop-blur rounded-2xl p-4 border border-slate-200/50">
+              <div className="h-8 w-20 bg-slate-200 rounded animate-pulse mb-1" />
+              <div className="h-3 w-24 bg-slate-200 rounded animate-pulse" />
+            </div>
+          </div>
+        </div>
+
+        {/* Tap Area Skeleton */}
+        <div className="relative flex-1 bg-linear-to-br from-slate-300 to-slate-400 flex items-center justify-center">
+          <motion.div
+            className="text-center"
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <div className="text-white/80 text-4xl font-black mb-3 tracking-tighter">
+              LOADING
+            </div>
+            <div className="inline-flex items-center gap-2 text-white/70 text-base font-medium">
+              <div className="w-2 h-2 rounded-full bg-white/70 animate-pulse" />
+              Setting up...
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show username input if no user is logged in
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center px-4">
-        <div className="w-full max-w-md bg-white/90 backdrop-blur rounded-2xl p-6 border border-slate-200/60 shadow-sm">
+      <div className="min-h-screen bg-linear-to-b from-slate-50 to-slate-100 flex items-center justify-center px-4">
+        <motion.div
+          className="w-full max-w-md bg-white/90 backdrop-blur rounded-2xl p-6 border border-slate-200/60 shadow-sm"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
           <div className="text-slate-900 text-xl font-bold mb-2">Choose a username</div>
           <div className="text-slate-500 text-sm mb-4">You can change it anytime by refreshing.</div>
           <form
@@ -211,6 +322,7 @@ export default function HomePage() {
               onChange={(e) => setPendingName(e.target.value)}
               placeholder="Enter a username"
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/50 focus:border-slate-400"
+              autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -225,7 +337,7 @@ export default function HomePage() {
               Start
             </button>
           </form>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -258,7 +370,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex flex-col">
+    <div className="min-h-screen bg-linear-to-b from-slate-50 to-slate-100 flex flex-col">
       {/* Top Section - Elegant Header */}
       <motion.div
         className="flex-none backdrop-blur-xl bg-white/80 border-b border-slate-200/50 shadow-sm"
@@ -288,7 +400,7 @@ export default function HomePage() {
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
             >
-              <div className={`text-2xl font-bold bg-gradient-to-br ${teamGradient} bg-clip-text text-transparent`}>
+              <div className={`text-2xl font-bold bg-linear-to-br ${teamGradient} bg-clip-text text-transparent`}>
                 {user.tapCount.toLocaleString()}
               </div>
               <div className="text-[10px] text-slate-500 font-medium tracking-wide">YOUR TAPS</div>
@@ -342,7 +454,7 @@ export default function HomePage() {
 
       {/* Tap Area - Interactive Zone */}
       <motion.div
-        className={`relative flex-1 bg-gradient-to-br ${teamGradient} ${!isConnected ? 'opacity-50' : 'cursor-pointer'} flex items-center justify-center select-none overflow-hidden touch-none`}
+        className={`relative flex-1 bg-linear-to-br ${teamGradient} ${!isConnected ? 'opacity-50' : 'cursor-pointer'} flex items-center justify-center select-none overflow-hidden touch-none`}
         onPointerDown={handleTapWithEffect}
         whileTap={isConnected ? { scale: 0.98 } : {}}
         initial={{ opacity: 0 }}
@@ -350,7 +462,7 @@ export default function HomePage() {
         transition={{ delay: 0.2 }}
       >
         {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-t from-black/10 to-transparent" />
 
         {/* Tap Effect Ripple */}
         <AnimatePresence>

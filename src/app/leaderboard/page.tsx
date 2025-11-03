@@ -100,7 +100,7 @@ export default function LeaderboardPage() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center">
+            <div className="min-h-screen bg-linear-to-b from-slate-50 to-slate-100 flex items-center justify-center">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -113,7 +113,7 @@ export default function LeaderboardPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
+        <div className="min-h-screen bg-linear-to-b from-slate-50 to-slate-100">
             {/* Header */}
             <motion.div
                 className="backdrop-blur-xl bg-white/80 border-b border-slate-200/50 shadow-sm"
@@ -150,7 +150,7 @@ export default function LeaderboardPage() {
                         transition={{ delay: 0.1 }}
                     >
                         <div className="text-xs font-semibold text-slate-500 mb-1 tracking-wide uppercase">Team Blue</div>
-                        <div className="text-4xl font-black bg-gradient-to-br from-sky-500 to-blue-500 bg-clip-text text-transparent">
+                        <div className="text-4xl font-black bg-linear-to-br from-sky-500 to-blue-500 bg-clip-text text-transparent">
                             {formatNumber(gameState.blueScore)}
                         </div>
                     </motion.div>
@@ -161,7 +161,7 @@ export default function LeaderboardPage() {
                         transition={{ delay: 0.15 }}
                     >
                         <div className="text-xs font-semibold text-slate-500 mb-1 tracking-wide uppercase">Team Red</div>
-                        <div className="text-4xl font-black bg-gradient-to-br from-rose-500 to-pink-500 bg-clip-text text-transparent">
+                        <div className="text-4xl font-black bg-linear-to-br from-rose-500 to-pink-500 bg-clip-text text-transparent">
                             {formatNumber(gameState.redScore)}
                         </div>
                     </motion.div>
@@ -229,7 +229,7 @@ export default function LeaderboardPage() {
                                             </div>
 
                                             <div className="flex items-center gap-3">
-                                                <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${teamGradient} flex items-center justify-center shadow-lg shadow-${entry.team === 'blue' ? 'blue' : 'red'}-500/25`}>
+                                                <div className={`w-10 h-10 rounded-2xl bg-linear-to-br ${teamGradient} flex items-center justify-center shadow-lg shadow-${entry.team === 'blue' ? 'blue' : 'red'}-500/25`}>
                                                     <span className="text-white font-bold text-sm">
                                                         {entry.team === 'blue' ? 'B' : 'R'}
                                                     </span>

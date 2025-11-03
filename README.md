@@ -19,7 +19,7 @@ A real-time multiplayer tap battle game built with Next.js, Kafka, and WebSocket
 - **Message Queue**: Apache Kafka latest (KRaft mode) with KafkaJS
 - **Real-time**: WebSocket connections
 - **Styling**: Tailwind CSS with custom animations
-- **Deployment**: Docker & Docker Compose
+- **Deployment**: Docker, Docker Compose, Kubernetes, OpenShift
 
 ## Quick Start
 
@@ -64,15 +64,24 @@ docker-compose up kafka redis -d
 
 Only needed if running locally without Docker:
 
-Create a `.env.local` file:
+Create a `.env.local` file. For a complete configuration reference, see `env.example`:
 
 ```env
 # Kafka Configuration (use 127.0.0.1 to avoid IPv6 issues)
 KAFKA_BROKERS=127.0.0.1:9092
-KAFKA_USERNAME=
-KAFKA_PASSWORD=
 KAFKA_SSL=false
 KAFKA_TOPIC=game-taps
+
+# Kafka Security (see docs/KAFKA_SECURITY.md for details)
+KAFKA_SASL_MECHANISM=plain  # Options: plain, scram-sha-256, scram-sha-512
+KAFKA_USERNAME=
+KAFKA_PASSWORD=
+
+# Kafka SSL/TLS (for secure connections)
+# KAFKA_SSL=true
+# KAFKA_SSL_CA_PATH=./certs/ca-cert.pem
+# KAFKA_SSL_CERT_PATH=./certs/client-cert.pem  # For MTLS
+# KAFKA_SSL_KEY_PATH=./certs/client-key.pem    # For MTLS
 
 # WebSocket Configuration
 NEXT_PUBLIC_WS_URL=ws://localhost:3001
@@ -81,6 +90,8 @@ NEXT_PUBLIC_WS_URL=ws://localhost:3001
 NEXTAUTH_SECRET=your-secret-key-here
 NODE_ENV=development
 ```
+
+📚 **See detailed security configuration**: [docs/KAFKA_SECURITY.md](./docs/KAFKA_SECURITY.md)
 
 ### 4. Start the Application (Local Development Only)
 
@@ -183,7 +194,7 @@ src/
 │   └── UserInfo.tsx      # Player info
 ├── lib/                  # Utilities and services
 │   ├── kafka.ts         # Kafka configuration
-│   ├── websocket.ts     # WebSocket server
+│   ├── websocket-server.ts  # Standalone WebSocket server
 │   ├── types.ts         # TypeScript types
 │   └── utils.ts         # Helper functions
 ```
@@ -262,11 +273,80 @@ For production deployment, configure:
 - `KAFKA_USERNAME`/`KAFKA_PASSWORD`: Authentication credentials
 - `NEXT_PUBLIC_WS_URL`: WebSocket URL for client connections
 
+## Kafka Security Configuration
+
+Stream Wars supports secure Kafka connections with multiple authentication and encryption options:
+
+### Supported Security Features
+
+- ✅ **SSL/TLS Encryption** - Secure connections with certificate validation
+- ✅ **MTLS (Mutual TLS)** - Two-way authentication with client certificates
+- ✅ **SASL/PLAIN** - Basic username/password authentication
+- ✅ **SASL/SCRAM-SHA-256** - Secure challenge-response authentication
+- ✅ **SASL/SCRAM-SHA-512** - Most secure password authentication
+
+### Quick Setup Examples
+
+#### Local Development (No Security)
+```env
+KAFKA_BROKERS=127.0.0.1:9092
+KAFKA_SSL=false
+```
+
+#### Cloud Kafka with SCRAM-SHA-256
+```env
+KAFKA_BROKERS=kafka.example.com:9093
+KAFKA_SSL=true
+KAFKA_SSL_CA_PATH=./certs/ca-cert.pem
+KAFKA_SASL_MECHANISM=scram-sha-256
+KAFKA_USERNAME=your-username
+KAFKA_PASSWORD=your-password
+```
+
+#### On-Premises with MTLS + SCRAM-SHA-512
+```env
+KAFKA_BROKERS=kafka1.internal:9093,kafka2.internal:9093
+KAFKA_SSL=true
+KAFKA_SSL_CA_PATH=./certs/ca-cert.pem
+KAFKA_SSL_CERT_PATH=./certs/client-cert.pem
+KAFKA_SSL_KEY_PATH=./certs/client-key.pem
+KAFKA_SASL_MECHANISM=scram-sha-512
+KAFKA_USERNAME=your-username
+KAFKA_PASSWORD=your-password
+```
+
+📚 **Complete Security Guide**: [docs/KAFKA_SECURITY.md](./docs/KAFKA_SECURITY.md)
+
 ## Monitoring
 
 - **Kafka UI**: Monitor message flow and topics at http://localhost:8080
 - **Application Logs**: Check console for WebSocket and Kafka events
 - **Performance**: Monitor WebSocket connections and message throughput
+
+## Kubernetes/OpenShift Deployment
+
+Stream Wars is ready for Kubernetes and OpenShift deployments with external Kafka (Strimzi/EventStreams) and Redis.
+
+### Quick Deploy
+
+```bash
+# Update ConfigMap with your settings
+vim k8s/configmap.yaml
+
+# Create secrets
+kubectl create secret generic stream-wars-secrets \
+  --from-literal=KAFKA_USERNAME="user" \
+  --from-literal=KAFKA_PASSWORD="pass" \
+  --from-literal=NEXTAUTH_SECRET=$(openssl rand -base64 32) \
+  --namespace=stream-wars
+
+# Deploy
+kubectl apply -f k8s/
+```
+
+📖 **Full Guide**: [k8s/README.md](./k8s/README.md)
+
+**Supported**: Kubernetes (with Ingress), OpenShift (with Routes), Strimzi/EventStreams Kafka
 
 ## Contributing
 

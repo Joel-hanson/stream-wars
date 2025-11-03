@@ -1,0 +1,176 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stream-wars
+  namespace: stream-wars
+  labels:
+    app: stream-wars
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: stream-wars
+  template:
+    metadata:
+      labels:
+        app: stream-wars
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+      - name: stream-wars
+        image: stream-wars-app:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 3000
+          protocol: TCP
+        - name: websocket
+          containerPort: 3001
+          protocol: TCP
+        env:
+        # Load configuration from ConfigMap
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: NODE_ENV
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: PORT
+        - name: WS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: WS_PORT
+        - name: HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: HOSTNAME
+        - name: NEXT_PUBLIC_WS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: NEXT_PUBLIC_WS_URL
+        - name: KAFKA_BROKERS
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: KAFKA_BROKERS
+        - name: KAFKA_CLIENT_ID
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: KAFKA_CLIENT_ID
+        - name: KAFKA_TOPIC
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: KAFKA_TOPIC
+        - name: KAFKA_CONNECTION_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: KAFKA_CONNECTION_TIMEOUT
+        - name: KAFKA_REQUEST_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: KAFKA_REQUEST_TIMEOUT
+        - name: KAFKA_SSL
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: KAFKA_SSL
+        - name: KAFKA_SSL_REJECT_UNAUTHORIZED
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: KAFKA_SSL_REJECT_UNAUTHORIZED
+        - name: KAFKA_SASL_MECHANISM
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: KAFKA_SASL_MECHANISM
+        - name: KAFKA_SSL_CA_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: KAFKA_SSL_CA_PATH
+        - name: KAFKA_SSL_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: KAFKA_SSL_CERT_PATH
+        - name: KAFKA_SSL_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: KAFKA_SSL_KEY_PATH
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: stream-wars-config
+              key: REDIS_URL
+        # Load secrets from Secret
+        - name: KAFKA_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: stream-wars-secrets
+              key: KAFKA_USERNAME
+        - name: KAFKA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: stream-wars-secrets
+              key: KAFKA_PASSWORD
+        - name: NEXTAUTH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: stream-wars-secrets
+              key: NEXTAUTH_SECRET
+        # Mount Kafka certificates
+        volumeMounts:
+        - name: kafka-certificates
+          mountPath: /etc/kafka-client
+          readOnly: true
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/game-state
+            port: http
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/game-state
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: kafka-certificates
+        secret:
+          secretName: kafka-client-certs
+      # Optional: Image pull secrets if using private registry
+      # imagePullSecrets:
+      # - name: registry-secret
+

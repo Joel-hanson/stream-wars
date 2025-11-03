@@ -11,7 +11,7 @@ import {
   getUser,
   removeUser
 } from './redis';
-import type { GameState, User, UserMetadataEvent, WebSocketMessage } from './types';
+import type { User, UserMetadataEvent, WebSocketMessage } from './types';
 import { generateId } from './utils';
 
 class StandaloneWebSocketServer {
@@ -87,7 +87,7 @@ class StandaloneWebSocketServer {
     });
 
     this.server.listen(port, () => {
-      console.log(`🎮 Game WebSocket server running on ws://localhost:${port}`);
+      console.log(`Game WebSocket server running on ws://localhost:${port}`);
     });
   }
 
@@ -130,6 +130,24 @@ class StandaloneWebSocketServer {
     }
   }
 
+  private async adjustTeamScores(team: 'blue' | 'red', amount: number): Promise<void> {
+    try {
+      const { getRedisClient, REDIS_KEYS } = await import('./redis');
+      const client = getRedisClient();
+      
+      const teamScoreKey = team === 'blue' 
+        ? REDIS_KEYS.TEAM_BLUE_SCORE 
+        : REDIS_KEYS.TEAM_RED_SCORE;
+      
+      await Promise.all([
+        client.incrby(teamScoreKey, amount),
+        client.incrby(REDIS_KEYS.TOTAL_TAPS, amount),
+      ]);
+    } catch (error) {
+      console.error('Error adjusting team scores:', error);
+    }
+  }
+
   private async handleClientDisconnect(clientId: string): Promise<void> {
     this.clients.delete(clientId);
     this.clientMetadata.delete(clientId);
@@ -156,12 +174,18 @@ class StandaloneWebSocketServer {
         parsedUserAgent = parseUserAgent(connectionMetadata.userAgent);
       }
 
+      // Use the maximum tap count between client (localStorage) and server (Redis)
+      // This ensures we don't lose taps if Redis was restarted or client was offline
+      const clientTapCount = userData.tapCount || 0;
+      const serverTapCount = existingUser?.tapCount || 0;
+      const finalTapCount = Math.max(clientTapCount, serverTapCount);
+
       const user: User = {
         id: userData.id || clientId,
         username: userData.username || 'Anonymous',
         team: existingUser?.team || assignedTeam,
         sessionId: userData.sessionId || '',
-        tapCount: existingUser?.tapCount || 0,
+        tapCount: finalTapCount,
         lastTapTime: existingUser?.lastTapTime || Date.now(),
         meta: {
           ...userData.meta,
@@ -174,6 +198,13 @@ class StandaloneWebSocketServer {
       
       // Add user to Redis
       await addUser(user);
+
+      // If client has more taps than server, we need to update team scores
+      const tapDifference = finalTapCount - serverTapCount;
+      if (tapDifference > 0) {
+        await this.adjustTeamScores(user.team, tapDifference);
+        console.log(`Adjusted ${user.team} team score by ${tapDifference} taps from localStorage sync`);
+      }
       
       // Keep track of which client is which user
       this.clientToUserId.set(clientId, user.id);
@@ -283,22 +314,6 @@ class StandaloneWebSocketServer {
         client.send(JSON.stringify(message));
       }
     });
-  }
-
-  async getGameState(): Promise<GameState> {
-    return await getGameState();
-  }
-
-  async getUsers(): Promise<User[]> {
-    return await getAllUsers();
-  }
-
-  async getLeaderboard(): Promise<User[]> {
-    return await getLeaderboard();
-  }
-  
-  async getUser(userId: string): Promise<User | null> {
-    return await getUser(userId);
   }
 
   stop(): void {

@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!env.example
 
 # vercel
 .vercel
@@ -43,3 +44,12 @@ next-env.d.ts
 # Snyk Security Extension - AI Rules (auto-generated)
 .cursor/rules/snyk_rules.mdc
 dist/
+
+# Kafka SSL certificates and keys
+certs/*.pem
+certs/*.key
+certs/*.crt
+certs/*.der
+certs/*.p12
+certs/*.jks
+!certs/README.md

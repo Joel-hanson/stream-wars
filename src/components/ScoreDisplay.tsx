@@ -31,12 +31,12 @@ export function ScoreDisplay({ gameState }: ScoreDisplayProps) {
                 >
                     {isBlueWinning && (
                         <motion.div
-                            className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-400 to-blue-400"
+                            className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-sky-400 to-blue-400"
                             layoutId="winner-indicator"
                         />
                     )}
                     <div className="text-xs font-semibold text-slate-500 mb-1 tracking-wide uppercase">Team Blue</div>
-                    <div className="text-4xl font-black bg-gradient-to-br from-sky-500 to-blue-500 bg-clip-text text-transparent">
+                    <div className="text-4xl font-black bg-linear-to-br from-sky-500 to-blue-500 bg-clip-text text-transparent">
                         {formatNumber(gameState.blueScore)}
                     </div>
                 </motion.div>
@@ -52,12 +52,12 @@ export function ScoreDisplay({ gameState }: ScoreDisplayProps) {
                 >
                     {isRedWinning && (
                         <motion.div
-                            className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-400 to-pink-400"
+                            className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-rose-400 to-pink-400"
                             layoutId="winner-indicator"
                         />
                     )}
                     <div className="text-xs font-semibold text-slate-500 mb-1 tracking-wide uppercase">Team Red</div>
-                    <div className="text-4xl font-black bg-gradient-to-br from-rose-500 to-pink-500 bg-clip-text text-transparent">
+                    <div className="text-4xl font-black bg-linear-to-br from-rose-500 to-pink-500 bg-clip-text text-transparent">
                         {formatNumber(gameState.redScore)}
                     </div>
                 </motion.div>
@@ -73,13 +73,13 @@ export function ScoreDisplay({ gameState }: ScoreDisplayProps) {
                 <div className="relative w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner">
                     <div className="flex h-full">
                         <motion.div
-                            className="bg-gradient-to-r from-sky-400 to-blue-400"
+                            className="bg-linear-to-r from-sky-400 to-blue-400"
                             initial={{ width: '50%' }}
                             animate={{ width: `${bluePercentage}%` }}
                             transition={{ duration: 0.8, ease: "easeOut" }}
                         />
                         <motion.div
-                            className="bg-gradient-to-r from-rose-400 to-pink-400"
+                            className="bg-linear-to-r from-rose-400 to-pink-400"
                             initial={{ width: '50%' }}
                             animate={{ width: `${redPercentage}%` }}
                             transition={{ duration: 0.8, ease: "easeOut" }}

@@ -9,11 +9,26 @@ services:
     ports:
       - "3000:3000"  # Next.js app
       - "3001:3001"  # WebSocket server
+    volumes:
+      # Mount certificates directory (read-only)
+      # Uncomment if using file-based certificates
+      # - ./certs:/app/certs:ro
     environment:
       - NODE_ENV=production
       - KAFKA_BROKERS=kafka:9092
       - NEXT_PUBLIC_WS_URL=ws://localhost:3001
       - WS_PORT=3001
+      # Kafka security configuration
+      - KAFKA_SSL=${KAFKA_SSL:-false}
+      - KAFKA_SASL_MECHANISM=${KAFKA_SASL_MECHANISM:-plain}
+      - KAFKA_USERNAME=${KAFKA_USERNAME:-}
+      - KAFKA_PASSWORD=${KAFKA_PASSWORD:-}
+      # SSL/TLS certificates (uncomment if using)
+      # - KAFKA_SSL_CA_PATH=${KAFKA_SSL_CA_PATH:-}
+      # - KAFKA_SSL_CERT_PATH=${KAFKA_SSL_CERT_PATH:-}
+      # - KAFKA_SSL_KEY_PATH=${KAFKA_SSL_KEY_PATH:-}
+      # - KAFKA_SSL_KEY_PASSPHRASE=${KAFKA_SSL_KEY_PASSPHRASE:-}
+      # - KAFKA_SSL_REJECT_UNAUTHORIZED=${KAFKA_SSL_REJECT_UNAUTHORIZED:-true}
     depends_on:
       kafka:
         condition: service_started

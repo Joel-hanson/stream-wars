@@ -11,7 +11,8 @@
     "start": "node dist/server.js",
     "dev:next": "next dev --webpack",
     "start:next": "next start",
-    "test:ws": "tsx test-websocket.ts",
+    "test:ws": "tsx scripts/test-websocket.ts",
+    "test:kafka": "tsx scripts/test-kafka-connection.ts",
     "lint": "eslint"
   },
   "dependencies": {

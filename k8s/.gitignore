@@ -1,0 +1,10 @@
+# Ignore actual secret files
+secrets.yaml
+kafka-certs.yaml
+*.key
+*.crt
+*.pem
+
+# Ignore environment-specific patches
+env-patches/
+

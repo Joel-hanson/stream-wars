@@ -1,0 +1,57 @@
+# Example IBM EventStreams MessageHubUser resource
+# This creates a user in your EventStreams cluster
+# Adjust namespace and cluster name based on your EventStreams installation
+
+apiVersion: eventstreams.ibm.com/v1beta2
+kind: MessageHubUser
+metadata:
+  name: stream-wars-user
+  namespace: eventstreams
+  labels:
+    app: stream-wars
+spec:
+  clusterRef: my-eventstreams-cluster
+  authType: scram-sha-512
+
+---
+# Example EventStreams Topic resource
+# You can let the app auto-create topics, or create them manually
+apiVersion: eventstreams.ibm.com/v1beta2
+kind: EventStreamsTopic
+metadata:
+  name: game-taps
+  namespace: eventstreams
+spec:
+  clusterRef: my-eventstreams-cluster
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: "86400000"  # 24 hours
+    segment.ms: "3600000"     # 1 hour
+
+---
+apiVersion: eventstreams.ibm.com/v1beta2
+kind: EventStreamsTopic
+metadata:
+  name: game-updates
+  namespace: eventstreams
+spec:
+  clusterRef: my-eventstreams-cluster
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: "86400000"
+
+---
+apiVersion: eventstreams.ibm.com/v1beta2
+kind: EventStreamsTopic
+metadata:
+  name: user-metadata
+  namespace: eventstreams
+spec:
+  clusterRef: my-eventstreams-cluster
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: "86400000"
+

@@ -6,18 +6,18 @@ const port = parseInt(process.env.WS_PORT || '3001', 10);
 
 async function startServer() {
   try {
-    console.log('🚀 Starting standalone WebSocket server...');
+    console.log('Starting standalone WebSocket server...');
     await standaloneWebSocketServer.start(port);
     
-    console.log('📡 Initializing Kafka...');
+    console.log('Initializing Kafka...');
     await initializeKafka();
     
-    console.log('🎧 Starting Kafka consumer...');
+    console.log('Starting Kafka consumer...');
     await startKafkaConsumer();
     
-    console.log('✅ All services started successfully');
+    console.log('All services started successfully');
   } catch (error) {
-    console.error('❌ Failed to start services:', error);
+    console.error('Failed to start services:', error);
     process.exit(1);
   }
 }

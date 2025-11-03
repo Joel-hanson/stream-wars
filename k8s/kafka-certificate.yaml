@@ -1,0 +1,23 @@
+# This is an example of how to mount Kafka certificates from a Secret
+# You should create the Secret containing your Kafka certificates:
+# kubectl create secret generic kafka-client-certs \
+#   --from-file=ca.crt=./certs/ca-cert.pem \
+#   --from-file=user.crt=./certs/client-cert.pem \
+#   --from-file=user.key=./certs/client-key.pem \
+#   --namespace=stream-wars
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kafka-client-certs
+  namespace: stream-wars
+  labels:
+    app: stream-wars
+type: Opaque
+# Add your actual certificates as base64 encoded data
+# Use: kubectl create secret with --from-file instead
+data:
+  # ca.crt: BASE64_ENCODED_CA_CERT
+  # user.crt: BASE64_ENCODED_CLIENT_CERT
+  # user.key: BASE64_ENCODED_CLIENT_KEY
+

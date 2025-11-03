@@ -23,7 +23,7 @@ export function getRedisClient(): Redis {
     });
 
     redis.on('connect', () => {
-      console.log('✅ Redis connected');
+      console.log('Redis connected');
     });
   }
 
@@ -91,7 +91,7 @@ export async function addUser(user: User): Promise<void> {
     JSON.stringify(user)
   );
   
-  console.log(`✅ User added to Redis: ${user.username} (${user.team})`);
+  console.log(`User added to Redis: ${user.username} (${user.team})`);
 }
 
 /**
@@ -128,7 +128,7 @@ export async function removeUser(userId: string): Promise<void> {
   
   await client.hdel(REDIS_KEYS.USERS, userId);
   
-  console.log(`✅ User removed from Redis: ${userId}`);
+  console.log(`User removed from Redis: ${userId}`);
 }
 
 /**
@@ -140,7 +140,7 @@ export async function incrementUserTaps(userId: string): Promise<User | null> {
   const user = await getUser(userId);
   
   if (!user) {
-    console.log(`❌ User ${userId} not found in Redis`);
+    console.log(`User ${userId} not found in Redis`);
     return null;
   }
   
@@ -161,7 +161,7 @@ export async function incrementUserTaps(userId: string): Promise<User | null> {
     client.incr(REDIS_KEYS.TOTAL_TAPS),
   ]);
   
-  console.log(`✅ Tap incremented for ${user.username} (${user.team}) - Total: ${user.tapCount}`);
+  console.log(`Tap incremented for ${user.username} (${user.team}) - Total: ${user.tapCount}`);
   
   return user;
 }
@@ -213,7 +213,7 @@ export async function resetGameState(): Promise<void> {
     client.del(REDIS_KEYS.TOTAL_TAPS),
   ]);
   
-  console.log('✅ Game state reset in Redis');
+  console.log('Game state reset in Redis');
 }
 
 /**

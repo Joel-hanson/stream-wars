@@ -5,13 +5,12 @@ Game state indicators (active players, total taps, leaderboard) were showing as 
 
 ## Root Causes
 
-### 1. **Wrong WebSocket Server Instance**
-- The application had TWO separate WebSocket server instances:
-  - `gameWebSocketServer` in `src/lib/websocket.ts`
-  - `standaloneWebSocketServer` in `src/lib/websocket-server.ts`
-- Clients connected to `standaloneWebSocketServer` on port 3001
-- But Kafka consumer was trying to update users in `gameWebSocketServer`
-- These were different instances with different user lists, so updates failed
+### 1. **Wrong WebSocket Server Instance (Legacy Removed)**
+- Previously there were TWO separate WebSocket server instances:
+  - `gameWebSocketServer` (legacy) in `src/lib/websocket.ts` [removed]
+  - `standaloneWebSocketServer` in `src/lib/websocket-server.ts` [kept]
+- Clients connect to `standaloneWebSocketServer` on port 3001
+- The Kafka consumer now updates the same instance, avoiding split state
 
 ### 2. **User ID Mapping Issue**
 - Users were being stored with WebSocket clientId instead of their actual userId

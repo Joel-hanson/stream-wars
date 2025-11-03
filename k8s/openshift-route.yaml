@@ -1,0 +1,40 @@
+# OpenShift Route for WebSocket support
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: stream-wars-websocket
+  namespace: stream-wars
+  labels:
+    app: stream-wars
+spec:
+  to:
+    kind: Service
+    name: stream-wars
+  port:
+    targetPort: websocket
+  tls:
+    # Use edge termination for WebSocket support
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+
+---
+# OpenShift Route for main application
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: stream-wars-app
+  namespace: stream-wars
+  labels:
+    app: stream-wars
+spec:
+  to:
+    kind: Service
+    name: stream-wars
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+

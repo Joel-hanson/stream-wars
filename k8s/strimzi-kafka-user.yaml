@@ -1,0 +1,81 @@
+# Example Strimzi KafkaUser resource
+# This creates a user in your Kafka cluster managed by Strimzi
+# Adjust namespace and cluster name based on your Strimzi installation
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: stream-wars-user
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: my-kafka-cluster
+    app: stream-wars
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+    # Allow producer access to game-taps topic
+    - resource:
+        type: topic
+        name: game-taps
+        patternType: literal
+      operations:
+        - Create
+        - Write
+        - Describe
+    # Allow producer access to game-updates topic
+    - resource:
+        type: topic
+        name: game-updates
+        patternType: literal
+      operations:
+        - Create
+        - Write
+        - Describe
+    # Allow producer access to user-metadata topic
+    - resource:
+        type: topic
+        name: user-metadata
+        patternType: literal
+      operations:
+        - Create
+        - Write
+        - Describe
+    # Allow consumer access to all topics in the consumer group
+    - resource:
+        type: topic
+        name: game-taps
+        patternType: literal
+      operations:
+        - Read
+        - Describe
+    - resource:
+        type: topic
+        name: game-updates
+        patternType: literal
+      operations:
+        - Read
+        - Describe
+    - resource:
+        type: topic
+        name: user-metadata
+        patternType: literal
+      operations:
+        - Read
+        - Describe
+    # Consumer group access
+    - resource:
+        type: group
+        name: stream-wars-consumer
+        patternType: literal
+      operations:
+        - Read
+        - Describe
+  # Quotas (optional)
+  quotas:
+    producerByteRate: 1048576
+    consumerByteRate: 2097152
+    requestPercentage: 55
+

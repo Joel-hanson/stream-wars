@@ -20,7 +20,7 @@ export async function publishUserMetadata(metadataEvent: UserMetadataEvent): Pro
       ],
     });
     
-    console.log(`📊 Published user metadata for ${metadataEvent.username} (${metadataEvent.userId})`);
+    console.log(`Published user metadata for ${metadataEvent.username} (${metadataEvent.userId})`);
   } catch (error) {
     console.error('Error publishing user metadata:', error);
     throw error;

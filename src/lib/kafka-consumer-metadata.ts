@@ -28,7 +28,7 @@ export async function startUserMetadataConsumer() {
       },
     });
     
-    console.log('✅ User metadata consumer started successfully');
+    console.log('User metadata consumer started successfully');
   } catch (error) {
     console.error('Failed to start user metadata consumer:', error);
     throw error;
@@ -46,7 +46,7 @@ export async function startUserMetadataConsumer() {
  */
 async function processUserMetadata(metadataEvent: UserMetadataEvent): Promise<void> {
   try {
-    console.log(`📊 User Metadata Received:
+    console.log(`User Metadata Received:
       User ID: ${metadataEvent.userId}
       Username: ${metadataEvent.username}
       Session: ${metadataEvent.sessionId}
