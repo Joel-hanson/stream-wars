@@ -1,5 +1,5 @@
 import { getConsumer, TOPICS } from './kafka';
-import { incrementUserTaps } from './redis';
+import { addUser, balanceTeamAssignment, getUser, incrementUserTaps } from './redis';
 import { TapEvent } from './types';
 import { standaloneWebSocketServer } from './websocket-server';
 
@@ -37,16 +37,40 @@ export async function startKafkaConsumer() {
  */
 async function processTapEvent(tapEvent: TapEvent): Promise<void> {
   try {
-    // Increment user taps in Redis
+    // Check if user exists in Redis
+    let user = await getUser(tapEvent.userId);
+    
+    // If user doesn't exist, create them from the tap event
+    if (!user) {
+      // Use team from tap event if provided, otherwise balance teams
+      const team = tapEvent.team || await balanceTeamAssignment();
+      
+      user = {
+        id: tapEvent.userId,
+        username: tapEvent.username,
+        team: team,
+        sessionId: tapEvent.sessionId,
+        tapCount: 0,
+        lastTapTime: Date.now(),
+        meta: {},
+      };
+      
+      // Add user to Redis
+      await addUser(user);
+      console.log(`Created user ${user.username} (${user.team}) from tap event`);
+    }
+    
+    // Increment user taps in Redis (this also updates team scores and total taps)
     const updatedUser = await incrementUserTaps(tapEvent.userId);
     
     if (updatedUser) {
       // Broadcast the update to all connected WebSocket clients
+      // This will send the updated game state (team scores, total taps) to all clients
       await standaloneWebSocketServer.broadcastGameUpdate(updatedUser);
       
-      console.log(`Processed tap from ${tapEvent.username} (${tapEvent.team}) - Total: ${updatedUser.tapCount}`);
+      console.log(`Processed tap from ${tapEvent.username} (${updatedUser.team}) - User taps: ${updatedUser.tapCount}`);
     } else {
-      console.log(`User ${tapEvent.userId} not found in Redis`);
+      console.error(`Failed to increment taps for user ${tapEvent.userId} after creating them`);
     }
   } catch (error) {
     console.error('Error processing tap event:', error);

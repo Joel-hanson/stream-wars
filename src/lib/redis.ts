@@ -1,4 +1,4 @@
-import Redis from 'ioredis';
+import Redis, { type RedisOptions } from 'ioredis';
 import type { GameState, User } from './types';
 
 let redis: Redis | null = null;
@@ -9,14 +9,24 @@ let redis: Redis | null = null;
 export function getRedisClient(): Redis {
   if (!redis) {
     const redisUrl = process.env.REDIS_URL || 'redis://redis:6379';
-    redis = new Redis(redisUrl, {
+    const redisPassword = process.env.REDIS_PASSWORD;
+    
+    const redisOptions: RedisOptions = {
       maxRetriesPerRequest: 3,
       retryStrategy: (times: number) => {
         const delay = Math.min(times * 50, 2000);
         return delay;
       },
       lazyConnect: true,
-    });
+    };
+    
+    // If REDIS_PASSWORD is provided as a separate env var, use it
+    // Otherwise, the password should be in the REDIS_URL (format: redis://:password@host:port)
+    if (redisPassword) {
+      redisOptions.password = redisPassword;
+    }
+    
+    redis = new Redis(redisUrl, redisOptions);
 
     redis.on('error', (err) => {
       console.error('Redis error:', err);
@@ -44,7 +54,8 @@ export async function connectRedis(): Promise<void> {
 // Redis Keys
 export const REDIS_KEYS = {
   GAME_STATE: 'game:state',
-  USERS: 'game:users',
+  USERS: 'game:users', // Active users only (online)
+  ALL_USERS: 'game:all_users', // All users who have ever played (persistent)
   USER_PREFIX: (userId: string) => `game:user:${userId}`,
   LEADERBOARD: 'game:leaderboard',
   TEAM_BLUE_SCORE: 'game:team:blue:score',
@@ -79,14 +90,21 @@ export async function getGameState(): Promise<GameState> {
 }
 
 /**
- * Add a user to Redis
+ * Add a user to Redis (active users + persistent storage)
  */
 export async function addUser(user: User): Promise<void> {
   const client = getRedisClient();
   
-  // Store user in hash
+  // Store user in active users hash (removed on disconnect)
   await client.hset(
     REDIS_KEYS.USERS,
+    user.id,
+    JSON.stringify(user)
+  );
+  
+  // Also store in persistent all_users hash (never removed)
+  await client.hset(
+    REDIS_KEYS.ALL_USERS,
     user.id,
     JSON.stringify(user)
   );
@@ -95,12 +113,18 @@ export async function addUser(user: User): Promise<void> {
 }
 
 /**
- * Get a user from Redis
+ * Get a user from Redis (checks active users first, then persistent storage)
  */
 export async function getUser(userId: string): Promise<User | null> {
   const client = getRedisClient();
   
-  const userData = await client.hget(REDIS_KEYS.USERS, userId);
+  // First check active users
+  let userData = await client.hget(REDIS_KEYS.USERS, userId);
+  
+  // If not in active users, check persistent storage
+  if (!userData) {
+    userData = await client.hget(REDIS_KEYS.ALL_USERS, userId);
+  }
   
   if (!userData) {
     return null;
@@ -148,8 +172,11 @@ export async function incrementUserTaps(userId: string): Promise<User | null> {
   user.tapCount += 1;
   user.lastTapTime = Date.now();
   
-  // Update user in Redis
+  // Update user in active users hash
   await client.hset(REDIS_KEYS.USERS, userId, JSON.stringify(user));
+  
+  // Also update in persistent all_users hash
+  await client.hset(REDIS_KEYS.ALL_USERS, userId, JSON.stringify(user));
   
   // Increment team score
   const teamScoreKey = user.team === 'blue' 
@@ -167,10 +194,22 @@ export async function incrementUserTaps(userId: string): Promise<User | null> {
 }
 
 /**
- * Get leaderboard from Redis
+ * Get all users who have ever played (including offline users)
  */
-export async function getLeaderboard(limit: number = 10): Promise<User[]> {
-  const users = await getAllUsers();
+export async function getAllUsersEverPlayed(): Promise<User[]> {
+  const client = getRedisClient();
+  
+  const usersData = await client.hgetall(REDIS_KEYS.ALL_USERS);
+  
+  return Object.values(usersData).map(data => JSON.parse(data) as User);
+}
+
+/**
+ * Get leaderboard from Redis (includes offline users)
+ */
+export async function getLeaderboard(limit: number = 50): Promise<User[]> {
+  // Get all users who have ever played (persistent storage)
+  const users = await getAllUsersEverPlayed();
   
   return users
     .sort((a, b) => b.tapCount - a.tapCount)
@@ -208,6 +247,7 @@ export async function resetGameState(): Promise<void> {
   
   await Promise.all([
     client.del(REDIS_KEYS.USERS),
+    client.del(REDIS_KEYS.ALL_USERS),
     client.del(REDIS_KEYS.TEAM_BLUE_SCORE),
     client.del(REDIS_KEYS.TEAM_RED_SCORE),
     client.del(REDIS_KEYS.TOTAL_TAPS),

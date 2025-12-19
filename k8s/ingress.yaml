@@ -8,17 +8,17 @@ metadata:
     # For Kubernetes, configure based on your ingress controller
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    nginx.ingress.kubernetes.io/websocket-services: "stream-wars"
+    nginx.ingress.kubernetes.io/websocket-services: "stream-wars-ws"
     # SSL/TLS configuration
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     # Alternative SSL configuration
     # kubernetes.io/tls-acme: "true"
 spec:
   ingressClassName: nginx
-  tls:
-  - hosts:
-    - stream-wars.example.com
-    secretName: stream-wars-tls
+  # tls:
+  # - hosts:
+  #   - stream-wars.example.com
+  #   secretName: stream-wars-tls
   rules:
   - host: stream-wars.example.com
     http:
@@ -28,7 +28,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: stream-wars
+            name: stream-wars-app
             port:
               number: 80
       # WebSocket endpoint
@@ -36,7 +36,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: stream-wars
+            name: stream-wars-ws
             port:
               number: 3001
 

@@ -6,7 +6,7 @@ Kafka connection errors with `connect ECONNREFUSED ::1:9092` because Node.js res
 
 ## Solution
 
-1. **Updated docker-compose.yml**: Changed `KAFKA_ADVERTISED_LISTENERS` from `localhost:9092` to `127.0.0.1:9092`
+1. **Updated docker-compose.dev.yml**: Changed `KAFKA_ADVERTISED_LISTENERS` from `localhost:9092` to `127.0.0.1:9092`
 
 2. **Updated src/lib/kafka.ts**: 
    - Added better broker handling
@@ -19,14 +19,14 @@ Kafka connection errors with `connect ECONNREFUSED ::1:9092` because Node.js res
 
 ```bash
 # Stop and restart Kafka with new configuration
-docker-compose down
-docker-compose up -d
+docker-compose -f docker-compose.dev.yml down
+docker-compose -f docker-compose.dev.yml up -d
 
 # Verify Kafka is running
-docker-compose ps
+docker-compose -f docker-compose.dev.yml ps
 
 # Check Kafka logs
-docker-compose logs kafka
+docker-compose -f docker-compose.dev.yml logs kafka
 ```
 
 ## Environment Variables

@@ -4,14 +4,14 @@
 
 case "$1" in
   start)
-    echo "🚀 Starting development environment..."
+    echo "Starting development environment..."
     docker-compose -f docker-compose.dev.yml up
     ;;
   
   up)
-    echo "🚀 Starting development environment in background..."
+    echo "Starting development environment in background..."
     docker-compose -f docker-compose.dev.yml up -d
-    echo "✅ Services started!"
+    echo "Services started."
     echo "   App: http://localhost:3000"
     echo "   WebSocket: ws://localhost:3001"
     echo ""
@@ -19,38 +19,33 @@ case "$1" in
     ;;
   
   down)
-    echo "🛑 Stopping development environment..."
+    echo "Stopping development environment..."
     docker-compose -f docker-compose.dev.yml down
-    echo "✅ Services stopped!"
+    echo "Services stopped."
     ;;
   
   restart)
-    echo "🔄 Restarting development environment..."
+    echo "Restarting development environment..."
     docker-compose -f docker-compose.dev.yml restart
-    echo "✅ Services restarted!"
+    echo "Services restarted."
     ;;
   
   logs)
-    echo "📋 Showing logs (Ctrl+C to exit)..."
+    echo "Showing logs (Ctrl+C to exit)..."
     docker-compose -f docker-compose.dev.yml logs -f app
     ;;
   
   rebuild)
-    echo "🔨 Rebuilding containers..."
+    echo "Rebuilding containers..."
     docker-compose -f docker-compose.dev.yml down -v
     docker-compose -f docker-compose.dev.yml up --build
     ;;
   
   clean)
-    echo "🧹 Cleaning up Docker resources..."
+    echo "Cleaning up Docker resources..."
     docker-compose -f docker-compose.dev.yml down -v
     docker system prune -f
-    echo "✅ Cleanup complete!"
-    ;;
-  
-  prod)
-    echo "🏭 Starting PRODUCTION environment..."
-    docker-compose up --build
+    echo "Cleanup complete."
     ;;
   
   *)
@@ -66,13 +61,11 @@ case "$1" in
     echo "  logs     - Show application logs"
     echo "  rebuild  - Rebuild containers from scratch"
     echo "  clean    - Clean up all Docker resources"
-    echo "  prod     - Build and start production environment"
     echo ""
     echo "Examples:"
     echo "  ./dev.sh up        # Start dev environment"
     echo "  ./dev.sh logs      # View logs"
     echo "  ./dev.sh down      # Stop everything"
-    echo "  ./dev.sh prod      # Test production build"
     ;;
 esac
 

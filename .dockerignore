@@ -44,3 +44,8 @@ Thumbs.db
 .editorconfig
 .eslintcache
 
+# Kubernetes and Docker Compose (not needed in image)
+k8s/
+docker-compose*.yml
+scripts/
+

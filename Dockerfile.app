@@ -1,4 +1,4 @@
-# Dockerfile for Kubernetes/OpenShift deployment
+# Dockerfile for Next.js Application (Kubernetes deployment)
 FROM node:20-alpine AS base
 
 # Install dependencies only when needed
@@ -34,7 +34,6 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/server.ts ./
-COPY --from=builder /app/websocket-server.ts ./
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/next.config.js ./
 COPY --from=builder /app/tsconfig.json ./
@@ -45,8 +44,8 @@ RUN npm install -g tsx
 
 USER nextjs
 
-EXPOSE 3000 3001
+EXPOSE 3000
 
-# Start both servers using concurrently
-CMD ["npx", "concurrently", "tsx server.ts", "tsx websocket-server.ts"]
+# Start only the Next.js server
+CMD ["tsx", "server.ts"]
 

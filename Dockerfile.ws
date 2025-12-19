@@ -1,4 +1,4 @@
-# Dockerfile for Kubernetes/OpenShift deployment
+# Dockerfile for WebSocket Server (Kubernetes deployment)
 FROM node:20-alpine AS base
 
 # Install dependencies only when needed
@@ -15,7 +15,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build Next.js
+# Build Next.js (needed for shared types and utilities)
 RUN npm run build
 
 # Production image
@@ -33,7 +33,6 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/server.ts ./
 COPY --from=builder /app/websocket-server.ts ./
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/next.config.js ./
@@ -45,8 +44,8 @@ RUN npm install -g tsx
 
 USER nextjs
 
-EXPOSE 3000 3001
+EXPOSE 3001
 
-# Start both servers using concurrently
-CMD ["npx", "concurrently", "tsx server.ts", "tsx websocket-server.ts"]
+# Start only the WebSocket server
+CMD ["tsx", "websocket-server.ts"]
 

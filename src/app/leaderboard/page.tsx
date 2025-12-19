@@ -27,10 +27,9 @@ export default function LeaderboardPage() {
 
             setGameState(data.gameState);
 
-            // Create leaderboard from users data
-            const leaderboardData: LeaderboardEntry[] = data.users
-                .sort((a: { tapCount: number }, b: { tapCount: number }) => b.tapCount - a.tapCount)
-                .slice(0, 20)
+            // Use leaderboard data (includes offline users)
+            const leaderboardData: LeaderboardEntry[] = data.leaderboard
+                .slice(0, 50)
                 .map((user: { username: string; team: string; tapCount: number }, index: number) => ({
                     username: user.username,
                     team: user.team as 'blue' | 'red',

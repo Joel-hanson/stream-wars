@@ -61,15 +61,7 @@ export default function HomePage() {
     const bc = new BroadcastChannel('sw_channel');
     channelRef.current = bc;
     bc.onmessage = (ev) => {
-      if (ev?.data?.type === 'tap' && ev.data?.userId && userRef.current && ev.data.userId === userRef.current.id) {
-        setUser(prev => {
-          if (!prev) return prev;
-          const updated = { ...prev, tapCount: ev.data.tapCount };
-          // Save to localStorage to persist tap count across tabs
-          try { localStorage.setItem('sw_user', JSON.stringify(updated)); } catch { }
-          return updated;
-        });
-      }
+      // Sync user state across tabs (from WebSocket updates only)
       if (ev?.data?.type === 'user_update' && ev.data?.user) {
         const incoming: User = ev.data.user;
         setUser(prev => (prev && prev.id === incoming.id) ? incoming : prev);
@@ -85,54 +77,110 @@ export default function HomePage() {
   useEffect(() => {
     if (!user) return;
 
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
-    const websocket = new WebSocket(wsUrl);
+    // Fetch WebSocket URL from API to get runtime value from K8s ConfigMap
+    // This allows the URL to be configured via environment variables at runtime
+    let websocket: WebSocket | null = null;
 
-    websocket.onopen = () => {
-      setIsConnected(true);
-      websocket.send(JSON.stringify({
-        type: 'user_join',
-        data: user,
-      }));
-    };
+    fetch('/api/ws-url')
+      .then(res => res.json())
+      .then(data => {
+        const wsUrl = data.wsUrl || process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
+        console.log('WebSocket URL:', wsUrl);
+        websocket = new WebSocket(wsUrl);
 
-    websocket.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      if (message.type === 'game_update') {
-        // Handle both old format (just gameState) and new format (gameState + user)
-        if (message.data.gameState) {
-          setGameState(message.data.gameState);
-          // If this update includes the current user's data, sync it
-          if (message.data.user && message.data.user.id === userRef.current?.id) {
-            setUser(prev => {
-              if (!prev) return prev;
-              // Use the maximum tap count to preserve localStorage data
-              const serverTapCount = message.data.user.tapCount;
-              const localTapCount = prev.tapCount;
-              const finalTapCount = Math.max(serverTapCount, localTapCount);
+        websocket.onopen = () => {
+          setIsConnected(true);
+          websocket?.send(JSON.stringify({
+            type: 'user_join',
+            data: user,
+          }));
+        };
 
-              const updated = {
-                ...prev,
-                tapCount: finalTapCount,
-                lastTapTime: message.data.user.lastTapTime
-              };
-              // Save to localStorage to persist tap count
-              try { localStorage.setItem('sw_user', JSON.stringify(updated)); } catch { }
-              // console.log(`Tap count synced - Local: ${localTapCount}, Server: ${serverTapCount}, Final: ${finalTapCount}`);
-              return updated;
-            });
+        websocket.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+          if (message.type === 'game_update') {
+            // Update game state (team scores, total taps, active users)
+            if (message.data.gameState) {
+              setGameState(message.data.gameState);
+            } else if (message.data.blueScore !== undefined) {
+              // Old format - just gameState directly in data
+              setGameState(message.data);
+            }
+
+            // If this update includes the current user's data, sync it
+            // Server is the source of truth for tap counts
+            if (message.data.user && message.data.user.id === userRef.current?.id) {
+              setUser(prev => {
+                if (!prev) return prev;
+                const updated = {
+                  ...prev,
+                  tapCount: message.data.user.tapCount,
+                  lastTapTime: message.data.user.lastTapTime
+                };
+                // Save to localStorage (username and team primarily, tapCount is just for offline display)
+                try { localStorage.setItem('sw_user', JSON.stringify(updated)); } catch { }
+                return updated;
+              });
+            }
           }
-        } else {
-          // Old format - just gameState
-          setGameState(message.data);
-        }
+        };
+
+        websocket.onclose = () => setIsConnected(false);
+        websocket.onerror = () => setIsConnected(false);
+      })
+      .catch(error => {
+        console.error('Failed to fetch WebSocket URL:', error);
+        // Fallback to default URL
+        const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
+        console.log('Using fallback WebSocket URL:', wsUrl);
+        websocket = new WebSocket(wsUrl);
+
+        websocket.onopen = () => {
+          setIsConnected(true);
+          websocket?.send(JSON.stringify({
+            type: 'user_join',
+            data: user,
+          }));
+        };
+
+        websocket.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+          if (message.type === 'game_update') {
+            // Update game state (team scores, total taps, active users)
+            if (message.data.gameState) {
+              setGameState(message.data.gameState);
+            } else if (message.data.blueScore !== undefined) {
+              // Old format - just gameState directly in data
+              setGameState(message.data);
+            }
+
+            // If this update includes the current user's data, sync it
+            // Server is the source of truth for tap counts
+            if (message.data.user && message.data.user.id === userRef.current?.id) {
+              setUser(prev => {
+                if (!prev) return prev;
+                const updated = {
+                  ...prev,
+                  tapCount: message.data.user.tapCount,
+                  lastTapTime: message.data.user.lastTapTime
+                };
+                // Save to localStorage (username and team primarily, tapCount is just for offline display)
+                try { localStorage.setItem('sw_user', JSON.stringify(updated)); } catch { }
+                return updated;
+              });
+            }
+          }
+        };
+
+        websocket.onclose = () => setIsConnected(false);
+        websocket.onerror = () => setIsConnected(false);
+      });
+
+    return () => {
+      if (websocket) {
+        websocket.close();
       }
     };
-
-    websocket.onclose = () => setIsConnected(false);
-    websocket.onerror = () => setIsConnected(false);
-
-    return () => websocket.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
@@ -150,6 +198,9 @@ export default function HomePage() {
     if (!user || !isConnected) return;
 
     try {
+      // Just send the tap event to the server
+      // The server will process it via Kafka and broadcast the update back
+      // We don't update the local count here to avoid race conditions
       const response = await fetch('/api/tap', {
         method: 'POST',
         headers: {
@@ -163,15 +214,8 @@ export default function HomePage() {
         }),
       });
 
-      if (response.ok) {
-        // Update local user tap count immediately for better UX
-        setUser(prev => {
-          if (!prev) return prev;
-          const updated = { ...prev, tapCount: prev.tapCount + 1, lastTapTime: Date.now() };
-          try { localStorage.setItem('sw_user', JSON.stringify(updated)); } catch { }
-          channelRef.current?.postMessage({ type: 'tap', userId: updated.id, tapCount: updated.tapCount });
-          return updated;
-        });
+      if (!response.ok) {
+        console.error('Failed to send tap');
       }
     } catch (error) {
       console.error('Error sending tap:', error);

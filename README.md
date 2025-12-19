@@ -4,119 +4,74 @@ A real-time multiplayer tap battle game built with Next.js, Kafka, and WebSocket
 
 ## Features
 
-- 🎮 **Real-time multiplayer gameplay** with WebSocket connections
-- 🔄 **Kafka integration** for scalable event streaming
-- 📱 **Mobile-first responsive design**
-- 🏆 **Live leaderboard** with top players
-- ⚡ **Instant score updates** across all connected players
-- 🎨 **Beautiful animations** with Framer Motion
-- 🐳 **Docker Compose** for easy local development
+- **Real-time multiplayer gameplay** with WebSocket connections
+- **Kafka integration** for scalable event streaming
+- **Mobile-first responsive design**
+- **Live leaderboard** with top players
+- **Instant score updates** across all connected players
+- **Beautiful animations** with Framer Motion
+- **Docker Compose** for easy local development
+
+## Screenshots
+
+Below are example screenshots from the game. If you add your own screenshots to the `docs/screenshots/` directory, they will be shown directly in this README:
+
+![Main game screen](docs/screenshots/game-main.png)
+![Leaderboard](docs/screenshots/leaderboard.png)
+
+
+You can rename the files and adjust the paths to match where you store your screenshots.
 
 ## Tech Stack
 
 - **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS
 - **Backend**: Next.js API Routes, WebSocket Server
-- **Message Queue**: Apache Kafka latest (KRaft mode) with KafkaJS
+- **Message Queue**: Apache Kafka (KRaft mode) with KafkaJS
 - **Real-time**: WebSocket connections
 - **Styling**: Tailwind CSS with custom animations
-- **Deployment**: Docker, Docker Compose, Kubernetes, OpenShift
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ 
 - Docker & Docker Compose
 - Git
 
-### 1. Clone and Install
+### Running the Application
+
+To start the application, run:
 
 ```bash
-git clone <repository-url>
-cd stream-wars
-npm install
-```
-
-### 2. Start Development Environment
-
-**Option A: Using Docker (Recommended - Everything included!)**
-
-```bash
-# Start everything (app, Kafka, Redis) with hot reload
 docker-compose -f docker-compose.dev.yml up
-
-# Or use the helper script
-./dev.sh up        # Start in background
-./dev.sh logs      # View logs
-./dev.sh down      # Stop everything
-
-# Access the game at http://localhost:3000
 ```
 
-**Option B: Local Development (Manual setup)**
+This will:
+- Start Kafka, Redis, and the application
+- Install dependencies automatically
+- Enable hot reload for development
+- Make the application available at http://localhost:3000
+
+### Using the Helper Script (Optional)
+
+You can also use the helper script for convenience:
 
 ```bash
-# Start only Kafka and Redis
-docker-compose up kafka redis -d
+# Make script executable (first time only)
+chmod +x scripts/dev.sh
+
+# Start in background
+./scripts/dev.sh up
+
+# View logs
+./scripts/dev.sh logs
+
+# Stop everything
+./scripts/dev.sh down
 ```
 
-### 3. Environment Setup (Optional for local development)
-
-Only needed if running locally without Docker:
-
-Create a `.env.local` file. For a complete configuration reference, see `env.example`:
-
-```env
-# Kafka Configuration (use 127.0.0.1 to avoid IPv6 issues)
-KAFKA_BROKERS=127.0.0.1:9092
-KAFKA_SSL=false
-KAFKA_TOPIC=game-taps
-
-# Kafka Security (see docs/KAFKA_SECURITY.md for details)
-KAFKA_SASL_MECHANISM=plain  # Options: plain, scram-sha-256, scram-sha-512
-KAFKA_USERNAME=
-KAFKA_PASSWORD=
-
-# Kafka SSL/TLS (for secure connections)
-# KAFKA_SSL=true
-# KAFKA_SSL_CA_PATH=./certs/ca-cert.pem
-# KAFKA_SSL_CERT_PATH=./certs/client-cert.pem  # For MTLS
-# KAFKA_SSL_KEY_PATH=./certs/client-key.pem    # For MTLS
-
-# WebSocket Configuration
-NEXT_PUBLIC_WS_URL=ws://localhost:3001
-
-# Application Configuration
-NEXTAUTH_SECRET=your-secret-key-here
-NODE_ENV=development
-```
-
-📚 **See detailed security configuration**: [docs/KAFKA_SECURITY.md](./docs/KAFKA_SECURITY.md)
-
-### 4. Start the Application (Local Development Only)
-
-Only if not using Docker:
-
-```bash
-# Development mode (runs both Next.js app and WebSocket server)
-npm run dev
-
-# Or run them separately:
-# Terminal 1: Next.js app (port 3000)
-npm run dev:app
-
-# Terminal 2: WebSocket server (port 3001)
-npm run dev:ws
-```
-
-**Note**: The application runs on two ports:
-- **Next.js app**: http://localhost:3000
-- **WebSocket server**: ws://localhost:3001
-
-### 5. Access the Game
+### Access the Game
 
 - **Game**: http://localhost:3000
-- **Kafka UI**: http://localhost:8080 (for monitoring)
 - **Leaderboard**: http://localhost:3000/leaderboard
 
 ## How It Works
@@ -153,33 +108,6 @@ npm run dev:ws
 
 ## Development
 
-### Testing WebSocket Connection
-
-To test the WebSocket connection:
-
-1. **Start the development server** in one terminal:
-```bash
-npm run dev
-```
-
-2. **Run the WebSocket test** in another terminal:
-```bash
-npm run test:ws
-```
-
-The test will:
-- Connect to the WebSocket server on port 3001
-- Send a test message with user data
-- Receive game state updates
-- Display all received messages
-
-If you see "socket hang up" or "ECONNREFUSED" errors, make sure both servers are running:
-```bash
-npm run dev
-```
-
-**Note**: The game WebSocket runs on a separate port (3001) to avoid conflicts with Next.js HMR WebSocket.
-
 ### Project Structure
 
 ```
@@ -189,9 +117,7 @@ src/
 │   ├── leaderboard/       # Leaderboard page
 │   └── page.tsx          # Main game page
 ├── components/            # React components
-│   ├── TapButton.tsx     # Main tap interface
-│   ├── ScoreDisplay.tsx  # Team scores
-│   └── UserInfo.tsx      # Player info
+│   └── ScoreDisplay.tsx  # Team scores
 ├── lib/                  # Utilities and services
 │   ├── kafka.ts         # Kafka configuration
 │   ├── websocket-server.ts  # Standalone WebSocket server
@@ -199,163 +125,116 @@ src/
 │   └── utils.ts         # Helper functions
 ```
 
-### Adding Features
+### Making Changes
 
-1. **New Game Modes**: Extend the `GameState` type and add new API routes
-2. **Custom Animations**: Add new Framer Motion animations to components
-3. **Team Customization**: Modify team assignment logic in `utils.ts`
-4. **Scoring Rules**: Update Kafka consumer logic for different scoring
+Since the development environment uses volume mounting, any changes you make to the code will automatically reload:
 
-## Docker Modes
+1. Edit files in your local directory
+2. Changes are automatically reflected in the running container
+3. Next.js hot reload will update the UI
 
-This project has **two Docker configurations**:
+### Stopping the Application
 
-### 🔧 Development Mode (Recommended for Local Work)
-
-**Fast, with hot reload - no build needed!**
+Press `Ctrl+C` in the terminal, or run:
 
 ```bash
-# Start development environment
+docker-compose -f docker-compose.dev.yml down
+```
+
+## Environment Variables
+
+The application uses these environment variables (configured in `docker-compose.dev.yml`):
+
+- `KAFKA_BROKERS`: Kafka broker address (default: `kafka:9092`)
+- `REDIS_URL`: Redis connection URL (default: `redis://redis:6379`)
+- `NEXT_PUBLIC_WS_URL`: WebSocket URL for client connections (default: `ws://localhost:3001`)
+- `WS_PORT`: WebSocket server port (default: `3001`)
+
+For local development, these are pre-configured and do not need to be changed.
+
+## Troubleshooting
+
+### Port Already in Use
+
+If you get a port conflict error:
+
+```bash
+# Check what's using the port
+lsof -i :3000
+lsof -i :3001
+
+# Stop the conflicting process or change ports in docker-compose.dev.yml
+```
+
+### Changes Not Reflecting
+
+If your changes are not showing up:
+
+```bash
+# Restart the container
+docker-compose -f docker-compose.dev.yml restart app
+```
+
+### Clean Start
+
+If you encounter issues, try a clean start:
+
+```bash
+# Stop and remove containers and volumes
+docker-compose -f docker-compose.dev.yml down -v
+
+# Start fresh
 docker-compose -f docker-compose.dev.yml up
-
-# Or use helper script
-./dev.sh up        # Start in background
-./dev.sh logs      # View logs
-./dev.sh down      # Stop
 ```
-
-**Features:**
-- ✅ Hot reload - changes reflect immediately
-- ✅ No build step - starts in ~30 seconds
-- ✅ Full dev tools and debugging
-- ✅ Volume mounting - edit code on your machine
-
-### 🚀 Production Mode (Optimized Build)
-
-**Optimized for deployment - 50-60% smaller & faster!**
-
-```bash
-# Build and start production environment
-docker-compose up --build
-
-# Or use helper script
-./dev.sh prod
-
-# Measure optimizations
-./measure-optimization.sh
-```
-
-**Features:**
-- ⚡ 50-60% smaller images (400-600MB vs 1.2GB)
-- ⚡ 30-40% faster builds
-- ⚡ 50-60% faster startup
-- 🔒 Enhanced security (non-root, minimal deps)
-
-📚 **See detailed guide**: [DOCKER_GUIDE.md](./DOCKER_GUIDE.md)
-
-## Deployment
-
-### Production Deployment
-
-```bash
-# Build and start all services (optimized)
-docker-compose up --build -d
-
-# Or use the production config explicitly
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### Environment Variables
-
-For production deployment, configure:
-
-- `KAFKA_BROKERS`: Your Kafka cluster endpoints
-- `KAFKA_USERNAME`/`KAFKA_PASSWORD`: Authentication credentials
-- `NEXT_PUBLIC_WS_URL`: WebSocket URL for client connections
-
-## Kafka Security Configuration
-
-Stream Wars supports secure Kafka connections with multiple authentication and encryption options:
-
-### Supported Security Features
-
-- ✅ **SSL/TLS Encryption** - Secure connections with certificate validation
-- ✅ **MTLS (Mutual TLS)** - Two-way authentication with client certificates
-- ✅ **SASL/PLAIN** - Basic username/password authentication
-- ✅ **SASL/SCRAM-SHA-256** - Secure challenge-response authentication
-- ✅ **SASL/SCRAM-SHA-512** - Most secure password authentication
-
-### Quick Setup Examples
-
-#### Local Development (No Security)
-```env
-KAFKA_BROKERS=127.0.0.1:9092
-KAFKA_SSL=false
-```
-
-#### Cloud Kafka with SCRAM-SHA-256
-```env
-KAFKA_BROKERS=kafka.example.com:9093
-KAFKA_SSL=true
-KAFKA_SSL_CA_PATH=./certs/ca-cert.pem
-KAFKA_SASL_MECHANISM=scram-sha-256
-KAFKA_USERNAME=your-username
-KAFKA_PASSWORD=your-password
-```
-
-#### On-Premises with MTLS + SCRAM-SHA-512
-```env
-KAFKA_BROKERS=kafka1.internal:9093,kafka2.internal:9093
-KAFKA_SSL=true
-KAFKA_SSL_CA_PATH=./certs/ca-cert.pem
-KAFKA_SSL_CERT_PATH=./certs/client-cert.pem
-KAFKA_SSL_KEY_PATH=./certs/client-key.pem
-KAFKA_SASL_MECHANISM=scram-sha-512
-KAFKA_USERNAME=your-username
-KAFKA_PASSWORD=your-password
-```
-
-📚 **Complete Security Guide**: [docs/KAFKA_SECURITY.md](./docs/KAFKA_SECURITY.md)
-
-## Monitoring
-
-- **Kafka UI**: Monitor message flow and topics at http://localhost:8080
-- **Application Logs**: Check console for WebSocket and Kafka events
-- **Performance**: Monitor WebSocket connections and message throughput
 
 ## Kubernetes/OpenShift Deployment
 
-Stream Wars is ready for Kubernetes and OpenShift deployments with external Kafka (Strimzi/EventStreams) and Redis.
+Stream Wars can be deployed on Kubernetes or OpenShift with Strimzi Kafka and Redis in the same namespace.
+
+### Prerequisites
+
+- Kubernetes or OpenShift cluster
+- Strimzi Kafka Operator installed
+- Kafka cluster and Redis deployed in the same namespace
 
 ### Quick Deploy
 
-```bash
-# Update ConfigMap with your settings
-vim k8s/configmap.yaml
+1. **Build and push Docker image**:
+   ```bash
+   docker build -t your-registry/stream-wars:latest .
+   docker push your-registry/stream-wars:latest
+   ```
 
-# Create secrets
-kubectl create secret generic stream-wars-secrets \
-  --from-literal=KAFKA_USERNAME="user" \
-  --from-literal=KAFKA_PASSWORD="pass" \
-  --from-literal=NEXTAUTH_SECRET=$(openssl rand -base64 32) \
-  --namespace=stream-wars
+2. **Update configuration** in `k8s/configmap.yaml`:
+   - Set your Kafka cluster name
+   - Set your Redis service name
+   - Set your public WebSocket URL
 
-# Deploy
-kubectl apply -f k8s/
-```
+3. **Update deployment image** in `k8s/deployment.yaml`
 
-📖 **Full Guide**: [k8s/README.md](./k8s/README.md)
+4. **Deploy**:
+   ```bash
+   # Create Kafka user
+   kubectl apply -f k8s/strimzi-kafka-user.yaml
+   
+   # Create secrets (see k8s/README.md for details)
+   kubectl create secret generic stream-wars-secrets ...
+   kubectl create secret generic kafka-client-certs ...
+   
+   # Deploy application
+   kubectl apply -f k8s/
+   ```
 
-**Supported**: Kubernetes (with Ingress), OpenShift (with Routes), Strimzi/EventStreams Kafka
+For a full deployment guide, see: [k8s/README.md](./k8s/README.md)
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test with Docker Compose
+4. Test with `docker-compose -f docker-compose.dev.yml up`
 5. Submit a pull request
 
 ## License
 
-MIT License - feel free to use this project for learning and development!
+MIT License - you are welcome to use this project for learning and development.

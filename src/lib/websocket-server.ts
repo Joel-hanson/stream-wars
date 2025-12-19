@@ -86,8 +86,9 @@ class StandaloneWebSocketServer {
       this.sendInitialState(clientId);
     });
 
-    this.server.listen(port, () => {
-      console.log(`Game WebSocket server running on ws://localhost:${port}`);
+    const hostname = process.env.HOSTNAME || '0.0.0.0';
+    this.server.listen(port, hostname, () => {
+      console.log(`Game WebSocket server running on ws://${hostname}:${port}`);
     });
   }
 
@@ -130,23 +131,6 @@ class StandaloneWebSocketServer {
     }
   }
 
-  private async adjustTeamScores(team: 'blue' | 'red', amount: number): Promise<void> {
-    try {
-      const { getRedisClient, REDIS_KEYS } = await import('./redis');
-      const client = getRedisClient();
-      
-      const teamScoreKey = team === 'blue' 
-        ? REDIS_KEYS.TEAM_BLUE_SCORE 
-        : REDIS_KEYS.TEAM_RED_SCORE;
-      
-      await Promise.all([
-        client.incrby(teamScoreKey, amount),
-        client.incrby(REDIS_KEYS.TOTAL_TAPS, amount),
-      ]);
-    } catch (error) {
-      console.error('Error adjusting team scores:', error);
-    }
-  }
 
   private async handleClientDisconnect(clientId: string): Promise<void> {
     this.clients.delete(clientId);
@@ -163,7 +147,15 @@ class StandaloneWebSocketServer {
         existingUser = await getUser(userData.id);
       }
       
-      const assignedTeam = existingUser?.team || await balanceTeamAssignment();
+      // IMPORTANT: Keep team assignment consistent between client and server
+      // Priority:
+      // 1) Existing Redis user team (reconnects)
+      // 2) Team sent from client on first join
+      // 3) Fallback to balanced assignment if no team provided
+      const finalTeam: 'blue' | 'red' =
+        (existingUser?.team as 'blue' | 'red' | undefined) ??
+        (userData.team as 'blue' | 'red' | undefined) ??
+        (await balanceTeamAssignment());
       
       // Get metadata from the connection
       const connectionMetadata = this.clientMetadata.get(clientId);
@@ -174,18 +166,21 @@ class StandaloneWebSocketServer {
         parsedUserAgent = parseUserAgent(connectionMetadata.userAgent);
       }
 
-      // Use the maximum tap count between client (localStorage) and server (Redis)
-      // This ensures we don't lose taps if Redis was restarted or client was offline
-      const clientTapCount = userData.tapCount || 0;
+      // CRITICAL: Use Redis as the single source of truth for tap counts
+      // If user exists in Redis, use their stored tap count
+      // If new user, start at 0
+      // We do NOT use the client's localStorage tap count because:
+      // 1. It can get out of sync with Redis
+      // 2. It can cause double-counting issues
+      // 3. Redis + Kafka is our authoritative system
       const serverTapCount = existingUser?.tapCount || 0;
-      const finalTapCount = Math.max(clientTapCount, serverTapCount);
 
       const user: User = {
         id: userData.id || clientId,
         username: userData.username || 'Anonymous',
-        team: existingUser?.team || assignedTeam,
+        team: finalTeam,
         sessionId: userData.sessionId || '',
-        tapCount: finalTapCount,
+        tapCount: serverTapCount,
         lastTapTime: existingUser?.lastTapTime || Date.now(),
         meta: {
           ...userData.meta,
@@ -196,15 +191,9 @@ class StandaloneWebSocketServer {
         },
       };
       
-      // Add user to Redis
+      // Add user to Redis (or update if reconnecting)
+      // Team scores are ONLY updated via Kafka tap events, not here
       await addUser(user);
-
-      // If client has more taps than server, we need to update team scores
-      const tapDifference = finalTapCount - serverTapCount;
-      if (tapDifference > 0) {
-        await this.adjustTeamScores(user.team, tapDifference);
-        console.log(`Adjusted ${user.team} team score by ${tapDifference} taps from localStorage sync`);
-      }
       
       // Keep track of which client is which user
       this.clientToUserId.set(clientId, user.id);
@@ -281,12 +270,24 @@ class StandaloneWebSocketServer {
     try {
       const gameState = await getGameState();
       
-      this.broadcast({
-        type: 'game_update',
+      // Send updates to all clients
+      // For the user who triggered the update, include their user data
+      // For other clients, just send the game state
+      this.clients.forEach((client, clientId) => {
+        if (client.readyState === WebSocket.OPEN) {
+          const userId = this.clientToUserId.get(clientId);
+          const includeUserData = updatedUser && userId === updatedUser.id;
+          
+          const message = {
+            type: 'game_update' as const,
         data: {
           gameState,
-          user: updatedUser,
+              ...(includeUserData ? { user: updatedUser } : {}),
         },
+          };
+          
+          client.send(JSON.stringify(message));
+        }
       });
     } catch (error) {
       console.error('Error broadcasting game update:', error);

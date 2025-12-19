@@ -6,9 +6,9 @@ apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaUser
 metadata:
   name: stream-wars-user
-  namespace: kafka
+  namespace: stream-wars
   labels:
-    strimzi.io/cluster: my-kafka-cluster
+    strimzi.io/cluster: my-cluster
     app: stream-wars
 spec:
   authentication:

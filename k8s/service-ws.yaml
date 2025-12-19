@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: stream-wars-ws
+  namespace: stream-wars
+  labels:
+    app: stream-wars
+    component: websocket
+spec:
+  type: ClusterIP
+  ports:
+  - name: websocket
+    port: 3001
+    targetPort: websocket
+    protocol: TCP
+  selector:
+    app: stream-wars
+

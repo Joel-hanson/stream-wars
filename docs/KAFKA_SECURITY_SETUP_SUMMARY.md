@@ -54,9 +54,7 @@ The application now supports comprehensive Kafka security configurations includi
 
 #### 4. Docker Compose Files
 **Files Updated:**
-- `docker-compose.yml` - Production configuration
 - `docker-compose.dev.yml` - Development configuration
-- `docker-compose.prod.yml` - Production with Kafka UI
 
 **Changes:**
 - Added environment variables for Kafka security
@@ -241,7 +239,7 @@ npm run dev
 # Place certificates in certs/ directory
 cp /path/to/certificates/* certs/
 
-# Update docker-compose.yml - uncomment certificate mount
+# Update docker-compose.dev.yml - uncomment certificate mount
 volumes:
   - ./certs:/app/certs:ro
 

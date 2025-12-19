@@ -2,11 +2,10 @@ import { createServer, IncomingMessage, Server, ServerResponse } from 'http';
 import next from 'next';
 import { parse } from 'url';
 import { initializeKafka } from './src/lib/kafka';
-import { startKafkaConsumer } from './src/lib/kafka-consumer';
 import { connectRedis } from './src/lib/redis';
 
 const dev = process.env.NODE_ENV !== 'production';
-const hostname: string = 'localhost';
+const hostname: string = process.env.HOSTNAME || 'localhost';
 const port: number = parseInt(process.env.PORT || '3000', 10);
 
 // Initialize Next.js app
@@ -35,11 +34,10 @@ app.prepare().then(async (): Promise<void> => {
     // Continue without Redis for development
   }
 
-  // Initialize Kafka
+  // Initialize Kafka (producer only - consumer runs in websocket server)
   try {
     await initializeKafka();
-    await startKafkaConsumer();
-    console.log('Kafka initialized successfully');
+    console.log('Kafka producer initialized successfully');
   } catch (error) {
     console.error('Kafka initialization failed:', error);
     // Continue without Kafka for development

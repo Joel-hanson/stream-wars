@@ -15,21 +15,22 @@ data:
   HOSTNAME: "0.0.0.0"
   
   # WebSocket URL - adjust based on your ingress
-  NEXT_PUBLIC_WS_URL: "wss://stream-wars.example.com/ws"
+  NEXT_PUBLIC_WS_URL: "ws://stream-wars.example.com/ws"
   
   # Kafka configuration - adjust broker addresses
-  KAFKA_BROKERS: "my-kafka-bootstrap.stream-wars.svc.cluster.local:9092"
+  # Replace 'my-kafka-cluster' with your Strimzi Kafka cluster name
+  KAFKA_BROKERS: "my-cluster-kafka-bootstrap.stream-wars.svc.cluster.local:9092"
   KAFKA_CLIENT_ID: "stream-wars-app"
   KAFKA_TOPIC: "game-taps"
   KAFKA_CONNECTION_TIMEOUT: "10000"
   KAFKA_REQUEST_TIMEOUT: "30000"
   
   # Kafka SSL/TLS configuration
-  KAFKA_SSL: "true"
-  KAFKA_SSL_REJECT_UNAUTHORIZED: "true"
+  KAFKA_SSL: "false"
+  KAFKA_SSL_REJECT_UNAUTHORIZED: "false"
   
   # Kafka SASL configuration
-  KAFKA_SASL_MECHANISM: "scram-sha-512"
+  KAFKA_SASL_MECHANISM: "plain"
   
   # Kafka certificate paths in container
   KAFKA_SSL_CA_PATH: "/etc/kafka-client/ca.crt"
@@ -37,6 +38,8 @@ data:
   KAFKA_SSL_KEY_PATH: "/etc/kafka-client/user.key"
   
   # Redis configuration - adjust based on your Redis deployment
-  # For Redis with password: redis://:password@host:port
-  REDIS_URL: "redis://stream-wars-redis:6379"
-
+  # Option 1: Include password in URL: redis://:password@host:port
+  # Option 2: Use REDIS_PASSWORD secret (recommended for security)
+  # Replace 'redis-master' with your Redis service name in the same namespace
+  REDIS_URL: "redis://redis-master.stream-wars.svc.cluster.local:6379"
+  REDIS_PASSWORD: "2i0V172Jzw"
