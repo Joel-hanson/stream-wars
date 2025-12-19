@@ -2,16 +2,6 @@
 
 A real-time multiplayer tap battle game built with Next.js, Kafka, and WebSockets. Players are automatically assigned to Team Blue or Team Red and compete by tapping to score points for their team.
 
-## Features
-
-- **Real-time multiplayer gameplay** with WebSocket connections
-- **Kafka integration** for scalable event streaming
-- **Mobile-first responsive design**
-- **Live leaderboard** with top players
-- **Instant score updates** across all connected players
-- **Beautiful animations** with Framer Motion
-- **Docker Compose** for easy local development
-
 ## Screenshots
 
 Below are example screenshots from the game. If you add your own screenshots to the `docs/screenshots/` directory, they will be shown directly in this README:

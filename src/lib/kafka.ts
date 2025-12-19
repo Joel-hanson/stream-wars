@@ -131,6 +131,13 @@ export const TOPICS = {
   GAME_TAPS: process.env.KAFKA_TOPIC || 'game-taps',
   GAME_UPDATES: 'game-updates',
   USER_METADATA: 'user-metadata',
+  SESSION_EVENTS: 'session-events',
+  ANALYTICS: 'analytics',
+  POWER_RANKINGS: 'power-rankings',
+  TEAM_DYNAMICS: 'team-dynamics',
+  CLIENT_PERFORMANCE: 'client-performance',
+  ENGAGEMENT_PATTERNS: 'engagement-patterns',
+  FUN_ANOMALIES: 'fun-anomalies',
 } as const;
 
 let producer: Producer | null = null;
